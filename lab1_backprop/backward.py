@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-
+import module
 
 def generate_linear(n=100):
     pts = np.random.uniform(0, 1, (n, 2))
@@ -55,4 +55,12 @@ def sigmoid(x):
     return 1.0/(1.0 + np.exp(-x))
 
 
+def main():
+    x, y = generate_linear()
+    linear1 = module.Linear(in_features=2, out_features=10)
+    sigmoid1 = module.Sigmoid()
+    print(sigmoid1(linear1(x)))
+
+if __name__ == '__main__':
+    main()
 
