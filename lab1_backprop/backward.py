@@ -54,26 +54,17 @@ def show_result(x, y, pred_y):
 
 def main():
     x, y = generate_linear()
-    linear1 = module.Linear(in_features=3, out_features=20)
-    linear2 = module.Linear(in_features=20, out_features=1)
-    sigmoid = module.Sigmoid()
+    net = module.Net_HW1(in_features=2, out_features=1)
+    loss_func = module.LossFunction()
 
-    net = [linear1, sigmoid, linear2, sigmoid]
+    # epochs = 100
+    # for i in range(epochs):
+    pred = net.forward(x.T)
+        
+    loss = loss_func.forward(pred, y)
+    print(loss_func.backward(pred, y).shape)
 
-    epochs = 100
-    for i in range(epochs):
-        for data, label in zip(x, y):
-            pred = data
-            for layer in net:
-                print(layer)
-                pred = layer(pred)
-            loss = module.square_error(label, pred[0])
-            grad_w, grad_b = module.loss_grad(label, data, linear1)
-            linear1.w = linear1.w - 1e-4*grad_w
-            linear1.b = linear1.b - 1e-4*grad_b
-            print(loss)
-
-    show_result(x, y, pred)
+    # show_result(x, y, pred)
 
 if __name__ == '__main__':
     main()
