@@ -54,17 +54,18 @@ def show_result(x, y, pred_y):
 
 def main():
     x, y = generate_linear()
-    net = module.Net_HW1(in_features=2, out_features=1)
-    loss_func = module.LossFunction()
+    layers = [
+        module.Linear(in_features=2, out_features=10),
+        module.Sigmoid(),
+        module.Linear(in_features=10, out_features=10),
+        module.Sigmoid(),
+        module.Linear(in_features=10, out_features=1)
+    ]
 
-    # epochs = 100
-    # for i in range(epochs):
-    pred = net.forward(x.T)
-        
-    loss = loss_func.forward(pred, y)
-    print(loss_func.backward(pred, y).shape)
+    net = module.Net(layers)
 
-    # show_result(x, y, pred)
+    for data, label in zip(x, y):
+        print(net.forward(data))
 
 if __name__ == '__main__':
     main()
