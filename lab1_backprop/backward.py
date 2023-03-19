@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import module
+import argparse
 
 def generate_linear(n=100):
     pts = np.random.uniform(0, 1, (n, 2))
@@ -48,23 +49,33 @@ def show_result(x, y, pred_y):
             plt.plot(x[i][0], x[i][1], 'ro')
         else:
             plt.plot(x[i][0], x[i][1], 'bo')
-
+    plt.savefig('result')
     plt.show()
 
+def threshold(x):
+    return 1 if x >= 0.5 else 0
 
-def main():
-    x, y = generate_linear()
+def main(args):
+    task = generate_linear if args.task == 'linear' else generate_XOR_easy
+    x, y = task()
+
+    # note that sometimes it might perform horribly on XOR task if the number of neurons are not large enough 
+    hidden_layers_features = [256, 64, 32, 16]
     layers = [
-        module.Linear(in_features=2, out_features=256),
+        module.Linear(in_features=2, out_features=hidden_layers_features[0]),
         module.Sigmoid(),
-        module.Linear(in_features=256, out_features=64),
+        module.Linear(in_features=hidden_layers_features[0], out_features=hidden_layers_features[1]),
         module.Sigmoid(),
-        module.Linear(in_features=64, out_features=1)
+        module.Linear(in_features=hidden_layers_features[1], out_features=1),
     ]
-    net = module.Net(layers, lr=1e-3)
+    net = module.Net(layers, lr=args.lr)
     criterion = module.MSELoss()
 
-    epochs = 100
+    epochs = 1000
+    eps = 1e-3
+    prev_total_loss = 0
+    loss_history = []
+
 
     for i in range(epochs):
         total_loss = 0
@@ -73,13 +84,47 @@ def main():
             total_loss += criterion.forward(pred, label)
             pred_grad = criterion.backward() 
             net.backward(pred_grad)
+        print(f'epoch {i} loss : {total_loss}')
+        loss_history.append(total_loss)
+        if np.abs(prev_total_loss - total_loss) < eps:
+            break
     
-    final_pred = []
-    for data in x:
-        final_pred.append(1 if net.forward(np.expand_dims(data, axis=0).T) >= 0.5 else 0)
+    plt.xlabel('epoch')
+    plt.ylabel('loss')
+    plt.plot(range(epochs), loss_history)
+    plt.savefig('epoch_loss')
+    plt.clf()
 
+    test(net, x, y, criterion)
+
+def test(net, x, y, criterion):
+    final_pred = []
+    correct = 0
+    total_loss = 0
+    for idx, (data, label) in enumerate(zip(x, y)):
+        output = net.forward(np.expand_dims(data, axis=0).T)
+        total_loss += criterion.forward(output, label)
+        label = label.squeeze()
+
+
+        pred = threshold(output)
+        final_pred.append(pred)
+
+        if pred == label:
+            correct += 1
+
+        print(f'Iter{idx} | \t Ground truth: {label.squeeze()}| \t prediction: {output} |')
+
+    print(f'loss={total_loss} accuracy={correct / y.size * 100}%')
+
+    
     show_result(x, y, final_pred)
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--task', '-t', type=str, default='linear')
+    parser.add_argument('--lr', '-l', type=float, default=1e-2)
+
+    args = parser.parse_args()
+    main(args)
 

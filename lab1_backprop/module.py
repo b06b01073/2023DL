@@ -1,9 +1,11 @@
 import numpy as np
 
 class Net:
-    def __init__(self, layers, lr):
+    def __init__(self, layers, lr, upper_clip=5, lower_clip=-5):
         self.layers = layers
         self.lr = lr
+        self.upper_clip = upper_clip
+        self.lower_clip = lower_clip
 
     def forward(self, x):
         for layer in self.layers:
@@ -13,13 +15,15 @@ class Net:
     def backward(self, pred_grad):
         downstream_grad = pred_grad
         for layer in reversed(self.layers):
+            downstream_grad = np.clip(downstream_grad, self.lower_clip, self.upper_clip)
             downstream_grad = layer.backward(lr=self.lr, downstream_grad=downstream_grad) if layer.updatable else layer.backward(downstream_grad=downstream_grad)
 
         
 
 class Linear:
     def __init__(self, in_features, out_features):
-        self.w = np.random.randn(out_features, in_features)
+        # set w and b in a certain range if overflow 
+        self.w = np.random.randn(out_features, in_features) 
         self.b = np.random.randn(out_features, 1)
         self.x = None
         self.updatable = True
@@ -40,12 +44,14 @@ class Linear:
         return x_grad
 
 class Sigmoid:
-    def __init__(self):
+    def __init__(self, upper_clip=10, lower_clip=-10):
         self.x = None
         self.updatable = False
+        self.upper_clip = upper_clip
+        self.lower_clip = lower_clip
 
     def forward(self, x):
-        self.x = x
+        self.x = np.clip(x, self.lower_clip, self.upper_clip) # the clip function here is to prevent overflow in the np.exp operation
         return 1 / (1 + np.exp(-self.x))
 
     def backward(self, downstream_grad):
@@ -53,7 +59,8 @@ class Sigmoid:
 
     def derivative_sigmoid(self):
         # note that all the operations are elementwise
-        return np.multiply(self.forward(self.x), 1 - self.forward(self.x))
+        x = self.forward(self.x)
+        return np.multiply(x, 1 - x)
 
 class MSELoss:
     def __init__(self):
