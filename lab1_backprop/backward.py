@@ -55,17 +55,30 @@ def show_result(x, y, pred_y):
 def main():
     x, y = generate_linear()
     layers = [
-        module.Linear(in_features=2, out_features=10),
+        module.Linear(in_features=2, out_features=256),
         module.Sigmoid(),
-        module.Linear(in_features=10, out_features=10),
+        module.Linear(in_features=256, out_features=64),
         module.Sigmoid(),
-        module.Linear(in_features=10, out_features=1)
+        module.Linear(in_features=64, out_features=1)
     ]
+    net = module.Net(layers, lr=1e-3)
+    criterion = module.MSELoss()
 
-    net = module.Net(layers)
+    epochs = 100
 
-    for data, label in zip(x, y):
-        print(net.forward(data))
+    for i in range(epochs):
+        total_loss = 0
+        for data, label in zip(x, y):
+            pred = net.forward(np.expand_dims(data, axis=0).T)
+            total_loss += criterion.forward(pred, label)
+            pred_grad = criterion.backward() 
+            net.backward(pred_grad)
+    
+    final_pred = []
+    for data in x:
+        final_pred.append(1 if net.forward(np.expand_dims(data, axis=0).T) >= 0.5 else 0)
+
+    show_result(x, y, final_pred)
 
 if __name__ == '__main__':
     main()
