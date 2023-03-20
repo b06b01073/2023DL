@@ -1,9 +1,8 @@
 import numpy as np
 
 class Net:
-    def __init__(self, layers, lr, upper_clip=5, lower_clip=-5):
+    def __init__(self, layers, upper_clip=5, lower_clip=-5):
         self.layers = layers
-        self.lr = lr
         self.upper_clip = upper_clip
         self.lower_clip = lower_clip
 
@@ -12,11 +11,11 @@ class Net:
             x = layer.forward(x)
         return x
 
-    def backward(self, pred_grad):
+    def backward(self, pred_grad, optimizer):
         downstream_grad = pred_grad
         for layer in reversed(self.layers):
             downstream_grad = np.clip(downstream_grad, self.lower_clip, self.upper_clip)
-            downstream_grad = layer.backward(lr=self.lr, downstream_grad=downstream_grad) if layer.updatable else layer.backward(downstream_grad=downstream_grad)
+            downstream_grad = layer.backward(optimizer=optimizer, downstream_grad=downstream_grad) if layer.updatable else layer.backward(downstream_grad=downstream_grad)
 
         
 
@@ -32,14 +31,15 @@ class Linear:
         self.x = x
         return np.dot(self.w, self.x) + self.b
 
-    def backward(self, lr, downstream_grad):
+    def backward(self, optimizer, downstream_grad):
         w_grad = np.dot(downstream_grad, self.x.T)
         b_grad = downstream_grad
         x_grad = np.dot(self.w.T, downstream_grad)
 
 
-        self.w -= lr * w_grad
-        self.b -= lr * b_grad
+        update_w, update_b = optimizer.update(w_grad, b_grad)
+        self.w -= update_w
+        self.b -= update_b
 
         return x_grad
 
@@ -109,7 +109,7 @@ class Tanh:
         return np.multiply(downstream_grad, self.derivative_tanh())
 
     def derivative_tanh(self):
-        return 1 - np.tanh(self.x) ** 2
+        return 1 / np.cosh(self.x) ** 2
 
 
 
@@ -127,3 +127,10 @@ class MSELoss:
     def backward(self):
         # note that there is no downstream_grad of the loss function, since it is the last node in the computational graph
         return (self.pred - self.y) / self.size
+
+class GD:
+    def __init__(self, lr):
+        self.lr = lr
+
+    def update(self, w_grad, b_grad):
+        return w_grad * self.lr, b_grad * self.lr

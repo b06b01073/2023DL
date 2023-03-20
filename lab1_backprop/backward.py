@@ -80,8 +80,9 @@ def main(args):
         activation(),
         module.Linear(in_features=hidden_layers_features[1], out_features=1),
     ]
-    net = module.Net(layers, lr=args.lr)
+    net = module.Net(layers)
     criterion = module.MSELoss()
+    optimizer = module.GD(lr=args.lr)
 
     epochs = 1000
     eps = 1e-3
@@ -95,7 +96,7 @@ def main(args):
             pred = net.forward(np.expand_dims(data, axis=0).T)
             total_loss += criterion.forward(pred, label)
             pred_grad = criterion.backward() 
-            net.backward(pred_grad)
+            net.backward(pred_grad, optimizer)
         print(f'epoch {i} loss : {total_loss}')
         loss_history.append(total_loss)
         if np.abs(prev_total_loss - total_loss) < eps:
