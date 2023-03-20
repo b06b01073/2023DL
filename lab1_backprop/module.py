@@ -94,7 +94,24 @@ class LeakyReLU:
         return derivative
 
     
-        
+class Tanh:
+    def __init__(self, upper_clip=10, lower_clip=-10):
+        self.x = None
+        self.updatable = False
+        self.upper_clip = upper_clip
+        self.lower_clip = lower_clip
+
+    def forward(self, x):
+        self.x = np.clip(x, self.lower_clip, self.upper_clip) # the clip function here is to prevent overflow in the np.exp operation
+        return np.tanh(self.x)
+
+    def backward(self, downstream_grad):
+        return np.multiply(downstream_grad, self.derivative_tanh())
+
+    def derivative_tanh(self):
+        return 1 - np.tanh(self.x) ** 2
+
+
 
 class MSELoss:
     def __init__(self):
