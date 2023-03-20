@@ -61,6 +61,40 @@ class Sigmoid:
         # note that all the operations are elementwise
         x = self.forward(self.x)
         return np.multiply(x, 1 - x)
+        
+class LeakyReLU:
+    def __init__(self, upper_clip=10, lower_clip=-10, s=0.2):
+        self.x = None
+        self.updatable = False
+        self.upper_clip = upper_clip
+        self.lower_clip = lower_clip
+        self.s = s
+        self.positive = None
+        self.negative = None
+
+    def forward(self, x):
+        self.x = np.clip(x, self.lower_clip, self.upper_clip) # the clip function here is to prevent overflow in the np.exp operation
+        self.positive = np.where(self.x >= 0)
+        self.negative = np.where(self.x < 0)
+
+        output = np.zeros(self.x.shape)
+        output[self.positive] = self.x[self.positive]
+        output[self.negative] = self.x[self.negative] * self.s
+
+        return output
+
+    def backward(self, downstream_grad):
+        return np.multiply(downstream_grad, self.derivative_leaky_relu())
+
+    def derivative_leaky_relu(self):
+        derivative = np.zeros(self.x.shape)
+        derivative[self.positive] = 1
+        derivative[self.negative] = self.s
+
+        return derivative
+
+    
+        
 
 class MSELoss:
     def __init__(self):

@@ -63,9 +63,9 @@ def main(args):
     hidden_layers_features = [256, 64, 32, 16]
     layers = [
         module.Linear(in_features=2, out_features=hidden_layers_features[0]),
-        module.Sigmoid(),
+        module.LeakyReLU(),
         module.Linear(in_features=hidden_layers_features[0], out_features=hidden_layers_features[1]),
-        module.Sigmoid(),
+        module.LeakyReLU(),
         module.Linear(in_features=hidden_layers_features[1], out_features=1),
     ]
     net = module.Net(layers, lr=args.lr)
