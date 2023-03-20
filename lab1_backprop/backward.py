@@ -55,17 +55,29 @@ def show_result(x, y, pred_y):
 def threshold(x):
     return 1 if x >= 0.5 else 0
 
+def get_activation(activation):
+    if activation == 'sigmoid':
+        print('Sigmoid')
+        return module.Sigmoid
+    elif activation == 'tanh':
+        print('Tanh')
+        return module.Tanh
+    elif activation == 'leakyrelu':
+        print('relu')
+        return module.LeakyReLU
+
 def main(args):
     task = generate_linear if args.task == 'linear' else generate_XOR_easy
+    activation = get_activation(args.activation)
     x, y = task()
 
     # note that sometimes it might perform horribly on XOR task if the number of neurons are not large enough 
     hidden_layers_features = [256, 64, 32, 16]
     layers = [
         module.Linear(in_features=2, out_features=hidden_layers_features[0]),
-        module.Tanh(),
+        activation(),
         module.Linear(in_features=hidden_layers_features[0], out_features=hidden_layers_features[1]),
-        module.Tanh(),
+        activation(),
         module.Linear(in_features=hidden_layers_features[1], out_features=1),
     ]
     net = module.Net(layers, lr=args.lr)
@@ -124,6 +136,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--task', '-t', type=str, default='linear')
     parser.add_argument('--lr', '-l', type=float, default=1e-2)
+    parser.add_argument('--activation', '-a', type=str, default='sigmoid')
 
     args = parser.parse_args()
     main(args)
