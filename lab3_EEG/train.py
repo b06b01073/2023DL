@@ -54,9 +54,22 @@ def train(data_batches, label_batches, model, optimizer, loss_fn, dataset_size):
 
 
 
-def test(test_data_batches, test_label_batches, model, test_size):
+def test(data_batches, label_batches, model, loss_fn, dataset_size):
     model.eval()
-    pass
+    total_loss = 0
+    corrects = 0
+    with torch.no_grad():
+        for mini_batch, labels in zip(data_batches, label_batches):
+            mini_batch = torch.from_numpy(mini_batch).float().to(device)
+            labels = torch.from_numpy(labels).type(torch.LongTensor).to(device)
+            output = model(mini_batch)
+
+            total_loss += loss_fn(output, labels)
+
+            preds = torch.argmax(output, dim=1)
+            corrects += torch.sum(preds == labels).item()
+
+        return total_loss.item(), corrects / dataset_size
 
 def main(args):
     train_data, train_label, test_data, test_label = read_bci_data()
@@ -78,15 +91,16 @@ def main(args):
 
     for i in range(epoch):
         train_loss, train_acc = train(train_data_batches, train_label_batches, model, optimizer, loss_fn, train_size)
-        test(train_data_batches, train_label_batches, model, test_size)
-        scheduler.step()
+        test_loss, test_acc = test(test_data_batches, test_label_batches, model, loss_fn, test_size)
+        # scheduler.step()
 
         print(f'Epoch: {i}')
         print(f'train loss: {train_loss}, train_acc: {train_acc}')
+        print(f'test loss: {test_loss}, test_acc: {test_acc}')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--lr', type=float, default=0.1)
+    parser.add_argument('--lr', type=float, default=0.01)
     parser.add_argument('--epoch', '-e', type=int, default=300)
     parser.add_argument('--batch_size', '-b', type=int, default=64)
 
