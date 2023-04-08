@@ -1,5 +1,6 @@
 import argparse
 from dataloader import read_bci_data
+from torch.utils.data import DataLoader, TensorDataset
 import model
 import torch
 import torch.optim as optim
@@ -60,16 +61,16 @@ def plot(train_acc, test_acc):
     plt.plot(test_acc)
     plt.savefig('acc.png')
 
-def train(data_batches, label_batches, model, optimizer, loss_fn, dataset_size):
+def train(dataset, model, optimizer, loss_fn, dataset_size):
     model.train()
     total_loss = 0
     corrects = 0
 
     # data_batches = augmentation(data_batches)
 
-    for mini_batch, labels in zip(data_batches, label_batches):
-        mini_batch = torch.from_numpy(mini_batch).float().to(device)
-        labels = torch.from_numpy(labels).type(torch.LongTensor).to(device)
+    for mini_batch, labels in dataset:
+        mini_batch = mini_batch.float().to(device)
+        labels = labels.type(torch.LongTensor).to(device)
         output = model(mini_batch)
 
 
@@ -86,14 +87,14 @@ def train(data_batches, label_batches, model, optimizer, loss_fn, dataset_size):
 
     return total_loss.item(), corrects / dataset_size
 
-def test(data_batches, label_batches, model, loss_fn, dataset_size):
+def test(dataset, model, loss_fn, dataset_size):
     model.eval()
     total_loss = 0
     corrects = 0
     with torch.no_grad():
-        for mini_batch, labels in zip(data_batches, label_batches):
-            mini_batch = torch.from_numpy(mini_batch).float().to(device)
-            labels = torch.from_numpy(labels).type(torch.LongTensor).to(device)
+        for mini_batch, labels in dataset:
+            mini_batch = mini_batch.float().to(device)
+            labels = labels.type(torch.LongTensor).to(device)
             output = model(mini_batch)
 
             total_loss += loss_fn(output, labels)
@@ -105,9 +106,16 @@ def test(data_batches, label_batches, model, loss_fn, dataset_size):
 
 def main(args):
     train_data, train_label, test_data, test_label = read_bci_data()
-    train_data_batches, train_label_batches = get_batches(train_data, train_label, args.batch_size)
-    test_data_batches, test_label_batches = get_batches(test_data, test_label, args.batch_size)
 
+    # train_data =  (train_data - np.amin(train_data)) / (np.amax(train_data) - np.amin(train_data))
+    # test_data =  (test_data - np.amin(test_data)) / (np.amax(test_data) - np.amin(test_data))
+
+    train_dataset = TensorDataset(torch.from_numpy(train_data), torch.from_numpy(train_label))
+    train_dataset = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
+
+
+    test_dataset = TensorDataset(torch.from_numpy(test_data), torch.from_numpy(test_label))
+    test_dataset = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=True)
 
     epoch = args.epoch
 
@@ -115,10 +123,10 @@ def main(args):
     print(f'Test data shape: {test_data.shape}, Test label shape: {test_label.shape}')
 
     net = model.get_model(args.model, args.activation).to(device)
-    optimizer = optim.Adam(net.parameters(), lr=args.lr, weight_decay=1e-4)
+    optimizer = optim.Adam(net.parameters(), lr=args.lr, weight_decay=1e-3)
     # optimizer = optim.RMSprop(model.parameters(), lr=args.lr, weight_decay=1e-3)
+    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[150, 250], gamma=0.2)
     loss_fn = nn.CrossEntropyLoss()
-    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[100, 200], gamma=0.1)
 
     train_size = train_data.shape[0]
     test_size = test_data.shape[0]
@@ -128,9 +136,8 @@ def main(args):
 
 
     for i in range(epoch):
-        train_loss, train_acc = train(train_data_batches, train_label_batches, net, optimizer, loss_fn, train_size)
-        test_loss, test_acc = test(test_data_batches, test_label_batches, net, loss_fn, test_size)
-        scheduler.step()
+        train_loss, train_acc = train(train_dataset, net, optimizer, loss_fn, train_size)
+        test_loss, test_acc = test(test_dataset, net, loss_fn, test_size)
 
         train_accs.append(train_acc)
         test_accs.append(test_acc)
@@ -139,11 +146,13 @@ def main(args):
         print(f'train loss: {train_loss}, train_acc: {train_acc}')
         print(f'test loss: {test_loss}, test_acc: {test_acc}')
 
+        scheduler.step()
+
     plot(train_accs, test_accs)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--lr', type=float, default=1e-2)
+    parser.add_argument('--lr', type=float, default=1e-3)
     parser.add_argument('--epoch', '-e', type=int, default=300)
     parser.add_argument('--batch_size', '-b', type=int, default=64)
     parser.add_argument('--activation', '-a', type=str, default='relu')
