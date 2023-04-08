@@ -123,9 +123,8 @@ def main(args):
     print(f'Test data shape: {test_data.shape}, Test label shape: {test_label.shape}')
 
     net = model.get_model(args.model, args.activation).to(device)
-    optimizer = optim.Adam(net.parameters(), lr=args.lr, weight_decay=1e-3)
-    # optimizer = optim.RMSprop(model.parameters(), lr=args.lr, weight_decay=1e-3)
-    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[150, 250], gamma=0.2)
+    optimizer = optim.Adam(net.parameters(), lr=args.lr, weight_decay=3e-2)
+    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[100, 200], gamma=0.5)
     loss_fn = nn.CrossEntropyLoss()
 
     train_size = train_data.shape[0]

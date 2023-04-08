@@ -88,7 +88,9 @@ class DeepConvNet(nn.Module):
             nn.Dropout(p=0.5),
         )
 
-        self.fc = nn.Linear(in_features=8600, out_features=2)
+        self.fc = nn.Sequential(
+            nn.Linear(in_features=8600, out_features=2),
+        )
     
     def forward(self, x):
         x = self.header(x)
