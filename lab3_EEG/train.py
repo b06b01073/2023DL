@@ -1,6 +1,6 @@
 import argparse
 from dataloader import read_bci_data
-from model import EEGNet
+import model
 import torch
 import torch.optim as optim
 import torch.nn as nn
@@ -14,12 +14,17 @@ print(f'Using {device}')
 def augmentation(data_batches):
     augmented_batches = deepcopy(data_batches)
     for i in range(len(augmented_batches)):
-        # print(augmented_batches[i].shape)
-        if np.random.uniform() > 0.5:
+        if np.random.uniform() > 0.2:
             mean = np.mean(augmented_batches[i])
             s = 5e-3
             clipper = 1
             augmented_batches[i] += np.clip(np.random.normal(loc=mean, scale=s, size=augmented_batches[i].shape), -clipper + mean, clipper + mean)
+
+        if np.random.uniform() > 0.8:
+            augmented_batches[i][:][0][0][1] = (data_batches[i][:][0][0][1] + data_batches[i][:][0][0][0]) / 2
+        if np.random.uniform() > 0.8:
+            augmented_batches[i][:][0][0][0] = (data_batches[i][:][0][0][0] +  data_batches[i][:][0][0][1]) / 2
+
         # if np.random.uniform() > 0:
         #     shift = np.random.randint(low=0, high=3)
         #     augmented_batches[i] = np.roll(augmented_batches[i], shift=shift, axis=3)
@@ -109,8 +114,8 @@ def main(args):
     print(f'Train data shape: {train_data.shape}, Train label shape: {train_label.shape}')
     print(f'Test data shape: {test_data.shape}, Test label shape: {test_label.shape}')
 
-    model = EEGNet(args.activation).to(device)
-    optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=2e-3)
+    net = model.get_model(args.model, args.activation).to(device)
+    optimizer = optim.Adam(net.parameters(), lr=args.lr, weight_decay=1e-4)
     # optimizer = optim.RMSprop(model.parameters(), lr=args.lr, weight_decay=1e-3)
     loss_fn = nn.CrossEntropyLoss()
     scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[100, 200], gamma=0.1)
@@ -123,8 +128,8 @@ def main(args):
 
 
     for i in range(epoch):
-        train_loss, train_acc = train(train_data_batches, train_label_batches, model, optimizer, loss_fn, train_size)
-        test_loss, test_acc = test(test_data_batches, test_label_batches, model, loss_fn, test_size)
+        train_loss, train_acc = train(train_data_batches, train_label_batches, net, optimizer, loss_fn, train_size)
+        test_loss, test_acc = test(test_data_batches, test_label_batches, net, loss_fn, test_size)
         scheduler.step()
 
         train_accs.append(train_acc)
@@ -142,6 +147,7 @@ if __name__ == '__main__':
     parser.add_argument('--epoch', '-e', type=int, default=300)
     parser.add_argument('--batch_size', '-b', type=int, default=64)
     parser.add_argument('--activation', '-a', type=str, default='relu')
+    parser.add_argument('--model', '-m', type=str, default='eegnet')
 
     args = parser.parse_args()
     main(args)
