@@ -104,11 +104,8 @@ def test(dataset, model, loss_fn, dataset_size):
 
         return total_loss.item(), corrects / dataset_size
 
-def main(args):
+def main(args, m, activation):
     train_data, train_label, test_data, test_label = read_bci_data()
-
-    # train_data =  (train_data - np.amin(train_data)) / (np.amax(train_data) - np.amin(train_data))
-    # test_data =  (test_data - np.amin(test_data)) / (np.amax(test_data) - np.amin(test_data))
 
     train_dataset = TensorDataset(torch.from_numpy(train_data), torch.from_numpy(train_label))
     train_dataset = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
@@ -122,9 +119,10 @@ def main(args):
     print(f'Train data shape: {train_data.shape}, Train label shape: {train_label.shape}')
     print(f'Test data shape: {test_data.shape}, Test label shape: {test_label.shape}')
 
-    net = model.get_model(args.model, args.activation).to(device)
+    print(m)
+    net = model.get_model(m, activation).to(device)
     optimizer = optim.Adam(net.parameters(), lr=args.lr, weight_decay=3e-2)
-    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[100, 200], gamma=0.5)
+    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[100, 200], gamma=0.4)
     loss_fn = nn.CrossEntropyLoss()
 
     train_size = train_data.shape[0]
@@ -133,6 +131,8 @@ def main(args):
     train_accs = []
     test_accs = []
 
+
+    best_acc = 0
 
     for i in range(epoch):
         train_loss, train_acc = train(train_dataset, net, optimizer, loss_fn, train_size)
@@ -147,15 +147,38 @@ def main(args):
 
         scheduler.step()
 
-    plot(train_accs, test_accs)
+        if test_acc > best_acc:
+            print('model saved')
+            best_acc = test_acc
+            torch.save(net.state_dict(), f'{m}_{activation}.pth')
+
+    return train_accs, test_accs, best_acc
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--lr', type=float, default=1e-3)
     parser.add_argument('--epoch', '-e', type=int, default=300)
     parser.add_argument('--batch_size', '-b', type=int, default=64)
-    parser.add_argument('--activation', '-a', type=str, default='relu')
     parser.add_argument('--model', '-m', type=str, default='eegnet')
-
     args = parser.parse_args()
-    main(args)
+
+    m = args.model
+    activations = ['relu', 'leaky', 'elu']
+    best_accs = []
+
+    plt.title(f'Activation function comparison({m})')
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy')
+
+    for activation in activations:
+        train_accs, test_accs, best_acc = main(args, m, activation)
+        plt.plot(test_accs, label=f'{activation}_test')
+        plt.plot(train_accs, label=f'{activation}_train')
+        plt.legend(loc='best')
+
+        best_accs.append(best_acc)
+
+    plt.savefig(f'{m}.png')
+
+    for activation, best_acc in zip(activations, best_accs):
+        print(f'activation {activation}: {best_acc}')
