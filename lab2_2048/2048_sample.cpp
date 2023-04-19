@@ -918,7 +918,7 @@ int main(int argc, const char* argv[]) {
 
 	// set the learning parameters
 	float alpha = 0.1;
-	size_t total = 100000;
+	size_t total = 1000;
 	unsigned seed;
 	__asm__ __volatile__ ("rdtsc" : "=a" (seed));
 	info << "alpha = " << alpha << std::endl;
@@ -966,7 +966,7 @@ int main(int argc, const char* argv[]) {
 		debug << "end episode" << std::endl;
 
 		// update by TD(0)
-		tdl.update_episode(path, alpha);
+		// tdl.update_episode(path, alpha);
 		tdl.make_statistic(n, b, score);
 		path.clear();
 		result << score << endl;
