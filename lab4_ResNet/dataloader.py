@@ -5,6 +5,8 @@ import os
 from PIL import Image
 import torch
 import torchvision.transforms as transforms
+from torchvision.utils import save_image
+
 
 def getData(mode):
     if mode == 'train':
@@ -30,19 +32,44 @@ class RetinopathyLoader(data.Dataset):
         self.root = root
         self.img_name, self.label = getData(mode)
         self.mode = mode
+
+        self.__degrade()
+
         print("> Found %d images..." % (len(self.img_name)))
+
+    
+    def __degrade(self):
+        path = os.path.join(self.root, f'{self.img_name[0]}.jpeg')
+        img = Image.open(path)
+        label = self.label[0]
+        return self.__transform(img), label
+
 
     def __len__(self):
         """'return the size of dataset"""
         return len(self.img_name)
 
-    def __transform(self, img):
-        script = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Resize((224, 224))
+    def __augmentation(self, img):
+        augmentation = transforms.Compose([
+            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.RandomRotation((-10, 10)),
         ])
 
-        return script(img)
+        return augmentation(img)
+
+    def __transform(self, img):
+        new_size = min(img.size)
+
+    
+        script = transforms.Compose([
+            transforms.CenterCrop((new_size, new_size)),
+            transforms.Resize((512, 512)),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ])
+
+        img = script(img)
+        return img
 
     def __getitem__(self, index):
         """something you should implement here"""
@@ -69,5 +96,11 @@ class RetinopathyLoader(data.Dataset):
 
         label = self.label[index]
 
-
-        return self.__transform(img), label
+        try:
+            img = self.__transform(img)
+            if self.mode == 'train':
+                img = self.__augmentation(img)
+            return  img, label
+        except :
+            print(f'failed to read an image {self.img_name[index]}')
+            return self.__degrade()
